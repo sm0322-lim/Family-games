@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "hands": {
+      "$code": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null"
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,10 @@
-// Firebase 콘솔 → 프로젝트 설정 → 내 앱(웹)에서 복사한 값으로 바꿔 주세요.
-// 이 파일을 채우지 않아도 "한 기기", "컴퓨터 상대" 모드는 동작해요.
-export const firebaseConfig = {
-  apiKey: "여기에_입력",
-  authDomain: "프로젝트.firebaseapp.com",
-  databaseURL: "https://프로젝트-default-rtdb.firebaseio.com",
-  projectId: "프로젝트",
-  appId: "여기에_입력"
+const firebaseConfig = {
+  apiKey: "AIzaSyBpfZhpe62jZZlLKZ-Hlrgn1Joi2orpccw",
+  authDomain: "family-games-b78a6.firebaseapp.com",
+  databaseURL: "https://family-games-b78a6-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "family-games-b78a6",
+  storageBucket: "family-games-b78a6.firebasestorage.app",
+  messagingSenderId: "295095406201",
+  appId: "1:295095406201:web:c000bc8342c62e58994ea8",
+  measurementId: "G-CC8KG3ZHRH"
 };

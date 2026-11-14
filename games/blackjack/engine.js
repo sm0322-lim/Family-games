@@ -3,6 +3,7 @@
 // - 21에 가깝게, 넘으면 버스트. 딜러는 17 이상에서 멈춤
 // - 10라운드 후 칩이 가장 많은 사람이 우승
 import { newDeck52 } from "../../js/cards.js";
+import { say } from "../../js/events.js";
 
 export const START_CHIPS = 100;
 export const ROUNDS = 10;
@@ -20,7 +21,6 @@ export function handValue(cards) {
 
 const isBlackjack = cards => cards.length === 2 && handValue(cards).total === 21;
 export const canDouble = p => p.status === "playing" && p.hand.length === 2 && p.chips >= p.bet * 2;
-const say = (g, text) => { g.log.push(text); if (g.log.length > 6) g.log.shift(); };
 
 export function newGame(players) {
   const g = {
@@ -35,6 +35,7 @@ export function newGame(players) {
     turnIndex: -1,
     winnerIds: [],
     log: [],
+    fx: [],
   };
   startRound(g);
   return g;
@@ -55,7 +56,7 @@ function startRound(g) {
   });
   g.phase = "bet";
   g.turnIndex = g.players.findIndex(p => p.status === "bet");
-  say(g, `${g.round}라운드: 베팅할 칩을 골라요`);
+  say(g, `${g.round}라운드: 베팅할 칩을 골라요`, "shuffle");
 }
 
 function draw(g) {
@@ -72,7 +73,7 @@ export function act(g, playerId, a) {
     if (a.type !== "bet" || !BETS.includes(a.amount) || a.amount > p.chips) return false;
     p.bet = a.amount;
     p.status = "ready";
-    say(g, `${p.name}: ${a.amount}칩 베팅`);
+    say(g, `${p.name}: ${a.amount}칩 베팅`, "chip");
     const next = g.players.findIndex(x => x.status === "bet");
     if (next >= 0) g.turnIndex = next; else deal(g);
     return true;
@@ -83,14 +84,14 @@ export function act(g, playerId, a) {
   if (a.type === "hit") {
     p.hand.push(draw(g));
     const v = handValue(p.hand).total;
-    if (v > 21) { p.status = "bust"; say(g, `${p.name}: 히트 → ${v} 버스트!`); nextPlayer(g); }
-    else if (v === 21) { p.status = "stand"; say(g, `${p.name}: 히트 → 21!`); nextPlayer(g); }
-    else say(g, `${p.name}: 히트 → ${v}`);
+    if (v > 21) { p.status = "bust"; say(g, `${p.name}: 히트 → ${v} 버스트!`, "bust"); nextPlayer(g); }
+    else if (v === 21) { p.status = "stand"; say(g, `${p.name}: 히트 → 21!`, "uno"); nextPlayer(g); }
+    else say(g, `${p.name}: 히트 → ${v}`, "flip");
     return true;
   }
   if (a.type === "stand") {
     p.status = "stand";
-    say(g, `${p.name}: 스탠드 (${handValue(p.hand).total})`);
+    say(g, `${p.name}: 스탠드 (${handValue(p.hand).total})`, "place");
     nextPlayer(g);
     return true;
   }
@@ -100,7 +101,7 @@ export function act(g, playerId, a) {
     p.hand.push(draw(g));
     const v = handValue(p.hand).total;
     p.status = v > 21 ? "bust" : "stand";
-    say(g, `${p.name}: 더블 (${p.bet}칩) → ${v}${v > 21 ? " 버스트!" : ""}`);
+    say(g, `${p.name}: 더블 (${p.bet}칩) → ${v}${v > 21 ? " 버스트!" : ""}`, v > 21 ? "bust" : "chip");
     nextPlayer(g);
     return true;
   }
@@ -115,10 +116,10 @@ function deal(g) {
   }
   live.forEach(p => { p.status = isBlackjack(p.hand) ? "blackjack" : "playing"; });
   g.phase = "play";
-  say(g, "카드를 2장씩 나눠 줬어요");
+  say(g, "카드를 2장씩 나눠 줬어요", "flip");
 
   if (isBlackjack(g.dealer)) {
-    say(g, "딜러 블랙잭!");
+    say(g, "딜러 블랙잭!", "lose");
     return dealerPlay(g);
   }
   const first = g.players.findIndex(p => p.status === "playing");
@@ -144,7 +145,7 @@ function dealerPlay(g) {
 function settle(g) {
   const d = handValue(g.dealer).total;
   const dBJ = isBlackjack(g.dealer);
-  say(g, `딜러: ${d}${d > 21 ? " 버스트!" : ""}`);
+  say(g, `딜러: ${d}${d > 21 ? " 버스트!" : ""}`, "end");
 
   g.players.forEach(p => {
     if (p.status === "out") return;
@@ -175,7 +176,7 @@ function endGame(g) {
   const max = Math.max(...g.players.map(p => p.chips));
   g.winnerIds = max > 0 ? g.players.filter(p => p.chips === max).map(p => p.id) : [];
   const names = g.players.filter(p => g.winnerIds.includes(p.id)).map(p => p.name).join(", ");
-  say(g, names ? `🏆 ${names} 우승! (${max}칩)` : "모두 칩을 잃었어요. 딜러 승리!");
+  say(g, names ? `🏆 ${names} 우승! (${max}칩)` : "모두 칩을 잃었어요. 딜러 승리!", names ? "fanfare" : "lose");
 }
 
 export function publicView(g) {
@@ -193,6 +194,7 @@ export function publicView(g) {
     },
     winnerIds: g.winnerIds,
     log: [...g.log],
+    fx: [...(g.fx || [])],
     players: g.players.map(p => ({
       id: p.id, name: p.name, isAI: p.isAI,
       chips: p.chips, bet: p.bet, hand: p.hand,

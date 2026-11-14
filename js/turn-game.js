@@ -11,6 +11,23 @@
 //   render(container, pub, mine, ui)  화면 그리기
 //   hidden                      손패를 숨기는 게임이면 true (한 기기 모드에서 폰 넘기기 화면)
 import { esc } from "./ui.js";
+import { play } from "./sound.js";
+
+// 새로 생긴 효과음 신호만 재생하고, 내 차례가 되면 알림음
+function makeFx() {
+  let last = 0;
+  let turnKey = null;
+  return (pub, myTurn) => {
+    const fresh = (pub.fx || []).filter(e => e && e.n > last);
+    if (fresh.length) {
+      last = Math.max(...fresh.map(e => e.n));
+      fresh.slice(-2).forEach((e, i) => setTimeout(() => play(e.s), i * 220));
+    }
+    const key = myTurn ? String(pub.turnId) : null;
+    if (key && key !== turnKey) setTimeout(() => play("turn"), fresh.length ? 480 : 0);
+    turnKey = key;
+  };
+}
 
 const AI_NAMES = ["컴퓨터 A", "컴퓨터 B", "컴퓨터 C"];
 // Firebase는 undefined를 저장하지 못해서 미리 정리해요
@@ -81,6 +98,7 @@ function playLocal(o, players, meId) {
   const g = spec.newGame(players);
   let tick = 0;          // 상태가 바뀔 때마다 증가 (예약된 컴퓨터 차례가 낡았는지 확인)
   let shownFor = null;   // 한 기기 모드: 카드를 확인한 사람
+  const fx = makeFx();
 
   const doAct = (pid, action) => {
     if (spec.act(g, pid, action)) tick++;
@@ -92,6 +110,7 @@ function playLocal(o, players, meId) {
     const pub = spec.publicView(g);
     const cur = pub.players.find(p => p.id === pub.turnId) || null;
     const humanTurn = !!cur && !cur.isAI;
+    fx(pub, humanTurn);
 
     if (spec.hidden && !meId && humanTurn && shownFor !== cur.id) {
       return renderPass(container, pub, cur, () => { shownFor = cur.id; paint(); });
@@ -149,6 +168,7 @@ async function startOnline(o) {
   let g = null;           // 방장 전용 게임 상태
   let tick = 0;
   let waiting = false;    // 방장: 컴퓨터 차례 예약 여부
+  const fx = makeFx();
 
   const send = action => {
     if (busy) return;
@@ -240,6 +260,7 @@ async function startOnline(o) {
   const paint = () => {
     if (!ctx.alive()) return;
     if (!pub) return renderLobby();
+    fx(pub, pub.turnId === myId);
     spec.render(container, pub, mine, {
       mode: "online",
       meId: myId,

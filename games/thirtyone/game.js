@@ -8,6 +8,7 @@ const RULES = `<ul>
   <li>각자 카드 3장을 받고, 바닥에 1장을 펼쳐 놓고 시작해요.</li>
   <li>내 차례에는 <b>더미</b>(뒤집힌 카드)나 <b>바닥</b>(펼쳐진 카드)에서 1장을 가져오고, 1장을 바닥에 반납해요. 손에는 항상 3장!</li>
   <li>점수는 <b>같은 무늬 카드의 합</b>이에요. A는 11, J·Q·K는 10, 나머지는 숫자 그대로예요. 최고 점수는 31점.</li>
+  <li><b>같은 숫자 3장(트리플, 예: 7·7·7)</b>을 만들면 그 순간 <b>즉시 1등</b>! 나머지는 모두 목숨 -1. 처음 받은 3장이 트리플이어도 바로 이겨요.</li>
   <li>그만 받고 싶으면 가져오는 대신 <b>🔒 Lock</b>을 눌러요. 다른 사람은 마지막으로 한 번씩 교환할 수 있어요.</li>
   <li>그다음 모두 카드를 공개해요. 31에 가장 가까운 사람이 1등, <b>가장 낮은 사람은 목숨 -1</b>.</li>
   <li>목숨은 3개, 마지막까지 남은 사람이 우승이에요.</li>
@@ -59,7 +60,7 @@ function render(container, pub, mine, ui) {
       body += `<div class="hand">${hand.map((c, i) => `
         <div class="slot">
           ${cardFace(c, { tag: "button", cls: i === 3 ? "new" : "", attrs: `data-i="${i}" aria-label="${cardLabel(c)} 반납"` })}
-          <small>남는 점수 ${E.score(hand.filter((_, j) => j !== i))}</small>
+          <small>${keepText(hand.filter((_, j) => j !== i))}</small>
         </div>`).join("")}</div>
         <p class="hint">반납할 카드를 눌러 주세요</p>`;
     } else if (hand.length) {
@@ -109,16 +110,18 @@ function render(container, pub, mine, ui) {
   bindFooter(container, ui);
 }
 
+const keepText = rest => (E.isTriple(rest) ? "<b>트리플! 즉시 승리</b>" : `남는 점수 ${E.score(rest)}`);
+
 function revealHTML(pub) {
   const r = pub.result;
   if (!r) return "";
   const lost = r.lostIds || [];
   const win = r.winnerIds || [];
-  return `<div class="reveal"><h3>카드 공개</h3><ul>${(r.reveal || []).map(x => `
+  return `<div class="reveal"><h3>${r.instant ? "🎉 트리플! 즉시 승리" : "카드 공개"}</h3><ul>${(r.reveal || []).map(x => `
     <li class="${win.includes(x.id) ? "best" : ""}">
       <div class="rhead">
         <strong>${win.includes(x.id) ? "👑 " : ""}${esc(x.name)}${x.id === r.lockBy ? " 🔒" : ""}</strong>
-        <span><b>${x.score}</b>점${lost.includes(x.id) ? " ❤️-1" : ""}</span>
+        <span>${x.triple ? "<b>트리플!</b>" : `<b>${x.score}</b>점`}${lost.includes(x.id) ? " ❤️-1" : ""}</span>
       </div>
       <div class="mini">${(x.hand || []).map(c => cardFace(c, { cls: "small" })).join("")}</div>
     </li>`).join("")}</ul></div>`;

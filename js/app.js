@@ -1,3 +1,5 @@
+import { play, unlock, isMuted, setMuted } from "./sound.js";
+
 const GAMES = [
   { id: "chess",     name: "체스",      icon: "♟️", desc: "2인 대결",                 ready: false },
   { id: "halli",     name: "할리갈리",  icon: "🍒", desc: "같은 과일 5개를 찾아라",   ready: false },
@@ -116,6 +118,20 @@ async function enterGame(gameId, mode, room = {}, net = null) {
     </div>`;
   }
 }
+
+// 효과음 켜기/끄기 (설정은 폰에 저장돼요)
+const soundBtn = document.getElementById("sound");
+const paintSound = () => {
+  soundBtn.textContent = isMuted() ? "🔇" : "🔊";
+  soundBtn.setAttribute("aria-pressed", String(!isMuted()));
+};
+soundBtn.addEventListener("click", () => {
+  setMuted(!isMuted());
+  paintSound();
+  play("turn");
+});
+paintSound();
+document.addEventListener("pointerdown", unlock);
 
 backBtn.addEventListener("click", showMenu);
 showMenu();

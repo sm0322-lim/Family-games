@@ -1,4 +1,5 @@
 import { score, bestKeep } from "./engine.js";
+// bestKeep은 트리플을 31보다 높게 쳐서, 트리플이 되면 바로 가져가요
 
 // 컴퓨터는 자기 손패와 바닥 카드만 보고 판단해요
 export function decide(g, playerId) {

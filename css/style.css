@@ -19,8 +19,8 @@ header {
   color: #fff;
   z-index: 10;
 }
-header h1 { margin: 0; font-size: 20px; }
-#back {
+header h1 { margin: 0; font-size: 20px; flex: 1; }
+#back, #sound {
   background: rgba(255,255,255,.25);
   border: 0;
   color: #fff;

@@ -3,6 +3,7 @@
 // - 낼 카드가 없으면 1장 뽑고, 그 카드를 낼 수 있으면 바로 내거나 넘겨요
 // - 가장 먼저 카드를 다 털면 우승
 import { shuffle } from "../../js/cards.js";
+import { say } from "../../js/events.js";
 
 export const COLORS = ["R", "Y", "G", "B"];
 export const COLOR_KO = { R: "빨강", Y: "노랑", G: "초록", B: "파랑" };
@@ -27,7 +28,6 @@ export function cardText(card, color) {
   return `${COLOR_KO[card.c]} ${ACTION_KO[card.v] || card.v}`;
 }
 
-const say = (g, text) => { g.log.push(text); if (g.log.length > 6) g.log.shift(); };
 const idx = (g, k) => (((g.turnIndex + g.dir * k) % g.players.length) + g.players.length) % g.players.length;
 
 export function newGame(players) {
@@ -42,6 +42,7 @@ export function newGame(players) {
     pendingDraw: false,        // 뽑은 카드를 낼지 고르는 중
     winnerId: null,
     log: [],
+    fx: [],
   };
   for (let k = 0; k < 7; k++) g.players.forEach(p => p.hand.push(g.deck.pop()));
 
@@ -52,7 +53,7 @@ export function newGame(players) {
   g.deck.unshift(...skipped);
   g.discard.push(first);
   g.color = first.c;
-  say(g, `게임 시작! ${g.players[0].name}부터 해요`);
+  say(g, `게임 시작! ${g.players[0].name}부터 해요`, "shuffle");
   return g;
 }
 
@@ -99,8 +100,8 @@ export function act(g, playerId, a) {
       g.phase = "gameOver";
       g.winnerId = p.id;
       g.turnIndex = -1;
-      say(g, text);
-      say(g, `🏆 ${p.name} 우승!`);
+      say(g, text, "place");
+      say(g, `🏆 ${p.name} 우승!`, "fanfare");
       return true;
     }
     if (p.hand.length === 1) text += " 🔔 우노!";
@@ -121,7 +122,8 @@ export function act(g, playerId, a) {
     } else {
       g.turnIndex = idx(g, 1);
     }
-    say(g, text);
+    const sound = p.hand.length === 1 ? "uno" : (card.c === "W" || !/^\d$/.test(card.v)) ? "special" : "place";
+    say(g, text, sound);
     return true;
   }
 
@@ -132,9 +134,9 @@ export function act(g, playerId, a) {
     p.hand.push(c);
     if (canPlay(c, top, g.color)) {
       g.pendingDraw = true;
-      say(g, `${p.name}: 한 장 뽑았어요`);
+      say(g, `${p.name}: 한 장 뽑았어요`, "flip");
     } else {
-      say(g, `${p.name}: 한 장 뽑고 넘겼어요`);
+      say(g, `${p.name}: 한 장 뽑고 넘겼어요`, "flip");
       g.turnIndex = idx(g, 1);
     }
     return true;
@@ -162,6 +164,7 @@ export function publicView(g) {
     pendingDraw: g.pendingDraw,
     winnerId: g.winnerId,
     log: [...g.log],
+    fx: [...(g.fx || [])],
     players: g.players.map(p => ({ id: p.id, name: p.name, isAI: p.isAI, count: p.hand.length })),
   };
 }

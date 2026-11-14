@@ -1,4 +1,4 @@
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBpfZhpe62jZZlLKZ-Hlrgn1Joi2orpccw",
   authDomain: "family-games-b78a6.firebaseapp.com",
   databaseURL: "https://family-games-b78a6-default-rtdb.europe-west1.firebasedatabase.app",

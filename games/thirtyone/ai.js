@@ -1,17 +1,20 @@
-import { sum, TARGET } from "./engine.js";
+import { score, bestKeep } from "./engine.js";
 
-// 다음 카드 한 장이 31을 넘게 만들 확률 (1~10 균등 가정)
-function bustChance(s) {
-  return Math.min(1, Math.max(0, (s - (TARGET - 10)) / 10));
-}
+// 컴퓨터는 자기 손패와 바닥 카드만 보고 판단해요
+export function decide(g, playerId) {
+  const p = g.players.find(x => x.id === playerId);
+  if (!p) return null;
 
-// 반환값: "draw" | "stand"
-export function decide(hand, lives) {
-  const s = sum(hand);
-  if (s <= 14) return "draw";
+  if (g.step === "discard") return { type: "discard", index: bestKeep(p.hand).index };
 
-  // 목숨이 많을수록 공격적, 적을수록 조심스럽게
-  const limit = lives >= 3 ? 0.5 : lives === 2 ? 0.35 : 0.2;
-  const noise = (Math.random() - 0.5) * 0.1;
-  return bustChance(s) < limit + noise ? "draw" : "stand";
+  const s = score(p.hand);
+  const alive = g.players.filter(x => x.lives > 0).length;
+  const laps = Math.floor(g.turnCount / alive);
+  // 처음에는 30점 이상일 때만 Lock, 바퀴가 돌수록 기준을 낮춤
+  const threshold = Math.max(22, 30 - laps * 2) - (Math.random() < 0.3 ? 1 : 0);
+  if (!g.lockBy && s >= threshold) return { type: "lock" };
+
+  const top = g.discard[g.discard.length - 1];
+  if (top && bestKeep([...p.hand, top]).score > s) return { type: "drawDiscard" };
+  return { type: "drawDeck" };
 }

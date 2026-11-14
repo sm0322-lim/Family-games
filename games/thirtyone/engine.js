@@ -1,169 +1,198 @@
-export const TARGET = 31;
+// 31 규칙
+// - 각자 3장, 바닥에 1장 펼침
+// - 차례: 더미 또는 바닥에서 1장 가져오고 1장 반납 (항상 3장)
+// - 또는 가져오는 대신 Lock → 다른 사람은 마지막으로 한 번씩 교환
+// - 공개: 같은 무늬 합이 점수 (A=11, J/Q/K=10). 가장 낮은 사람 목숨 -1
+import { newDeck52, shuffle, cardLabel } from "../../js/cards.js";
+
 export const START_LIVES = 3;
 
-export const sum = cards => cards.reduce((s, c) => s + c, 0);
+export const cardValue = c => (c.r === 1 ? 11 : Math.min(c.r, 10));
 
-export function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+export function score(hand) {
+  const bySuit = {};
+  (hand || []).forEach(c => { bySuit[c.s] = (bySuit[c.s] || 0) + cardValue(c); });
+  const vals = Object.values(bySuit);
+  return vals.length ? Math.max(...vals) : 0;
 }
 
-function newDeck() {
-  const deck = [];
-  for (let v = 1; v <= 10; v++) for (let k = 0; k < 4; k++) deck.push(v);
-  return shuffle(deck);
+// 4장 중 무엇을 버리면 남은 3장 점수가 가장 높은지
+export function bestKeep(hand4) {
+  let best = null;
+  hand4.forEach((c, i) => {
+    const s = score(hand4.filter((_, j) => j !== i));
+    if (!best || s > best.score || (s === best.score && cardValue(c) < cardValue(hand4[best.index]))) {
+      best = { index: i, score: s };
+    }
+  });
+  return best;
+}
+
+const say = (g, text) => { g.log.push(text); if (g.log.length > 6) g.log.shift(); };
+const aliveOf = g => g.players.filter(p => p.lives > 0);
+
+function nextAlive(g, from) {
+  const n = g.players.length;
+  for (let step = 1; step <= n; step++) {
+    const i = (((from + step) % n) + n) % n;
+    if (g.players[i].lives > 0) return i;
+  }
+  return -1;
 }
 
 export function newGame(players) {
-  return {
+  const g = {
     round: 0,
     phase: "playing",          // playing | roundEnd | gameOver
-    message: "",
-    winnerId: null,
-    result: null,
+    players: players.map(p => ({ id: p.id, name: p.name, isAI: !!p.isAI, lives: START_LIVES, hand: [] })),
     deck: [],
+    discard: [],
+    starter: -1,
     turnIndex: -1,
-    players: players.map(p => ({
-      id: p.id,
-      name: p.name,
-      isAI: !!p.isAI,
-      lives: START_LIVES,
-      hand: [],
-      status: "out",           // active | stood | bust | out
-    })),
+    step: "draw",              // draw(가져오기) | discard(반납)
+    lockBy: null,
+    turnCount: 0,
+    result: null,
+    winnerId: null,
+    log: [],
   };
+  startRound(g);
+  return g;
 }
 
-const aliveOf = g => g.players.filter(p => p.lives > 0);
-const byId = (g, id) => g.players.find(p => p.id === id);
+export function nextRound(g) {
+  if (g.phase === "roundEnd") startRound(g);
+}
 
-export function startRound(g) {
+function startRound(g) {
   const live = aliveOf(g);
   if (live.length <= 1) return endGame(g);
 
   g.round += 1;
+  g.deck = newDeck52();
+  g.discard = [];
+  g.players.forEach(p => { p.hand = []; });
+  for (let k = 0; k < 3; k++) live.forEach(p => p.hand.push(g.deck.pop()));
+  g.discard.push(g.deck.pop());
+
+  g.starter = nextAlive(g, g.starter);
+  g.turnIndex = g.starter;
+  g.step = "draw";
+  g.lockBy = null;
+  g.turnCount = 0;
   g.result = null;
-  g.deck = newDeck();
-  g.players.forEach(p => {
-    p.hand = [];
-    p.status = p.lives > 0 ? "active" : "out";
-  });
-  live.forEach(p => {
-    for (let i = 0; i < 3; i++) p.hand.push(g.deck.pop());
-  });
-  g.turnIndex = g.players.findIndex(p => p.status === "active");
   g.phase = "playing";
-  g.message = `${g.round}라운드 시작! 카드 3장씩 받았어요`;
-  return g;
+  say(g, `${g.round}라운드 시작! ${g.players[g.turnIndex].name}부터 해요`);
 }
 
-// type: "draw" | "stand"
-export function act(g, playerId, type) {
-  if (g.phase !== "playing") return g;
+function refillDeck(g) {
+  if (g.deck.length) return;
+  const top = g.discard.pop();
+  g.deck = shuffle(g.discard);
+  g.discard = top ? [top] : [];
+}
+
+// action: { type: "drawDeck" } | { type: "drawDiscard" } | { type: "lock" } | { type: "discard", index }
+export function act(g, playerId, a) {
+  if (g.phase !== "playing" || !a) return false;
   const p = g.players[g.turnIndex];
-  if (!p || p.id !== playerId || p.status !== "active") return g;
+  if (!p || p.id !== playerId) return false;
 
-  if (type === "draw") {
-    if (!g.deck.length) g.deck = newDeck();
-    p.hand.push(g.deck.pop());
-    const s = sum(p.hand);
-    if (s === TARGET) {
-      p.status = "stood";
-      return finishRound(g, p.id);   // 정확히 31이면 즉시 승리
+  if (g.step === "draw") {
+    if (a.type === "drawDeck") {
+      refillDeck(g);
+      const c = g.deck.pop();
+      if (!c) return false;
+      p.hand.push(c);
+      g.step = "discard";
+      say(g, `${p.name}: 더미에서 한 장 가져왔어요`);
+      return true;
     }
-    if (s > TARGET) p.status = "bust";
-  } else if (type === "stand") {
-    p.status = "stood";
-  } else {
-    return g;
+    if (a.type === "drawDiscard") {
+      const c = g.discard.pop();
+      if (!c) return false;
+      p.hand.push(c);
+      g.step = "discard";
+      say(g, `${p.name}: 바닥의 ${cardLabel(c)} 가져왔어요`);
+      return true;
+    }
+    if (a.type === "lock") {
+      if (g.lockBy) return false;
+      g.lockBy = p.id;
+      say(g, `🔒 ${p.name} Lock! 나머지는 마지막으로 한 번씩 교환해요`);
+      endTurn(g);
+      return true;
+    }
+    return false;
   }
-  return advance(g);
+
+  if (g.step === "discard" && a.type === "discard") {
+    const i = a.index;
+    if (!Number.isInteger(i) || i < 0 || i >= p.hand.length) return false;
+    const [c] = p.hand.splice(i, 1);
+    g.discard.push(c);
+    say(g, `${p.name}: ${cardLabel(c)} 반납했어요`);
+    endTurn(g);
+    return true;
+  }
+  return false;
 }
 
-function advance(g) {
-  const n = g.players.length;
-  for (let step = 1; step <= n; step++) {
-    const i = (g.turnIndex + step) % n;
-    if (g.players[i].status === "active") {
-      g.turnIndex = i;
-      return g;
-    }
-  }
-  return finishRound(g, null);      // 더 이상 진행할 사람이 없음
+function endTurn(g) {
+  g.turnCount += 1;
+  const next = nextAlive(g, g.turnIndex);
+  if (g.lockBy && g.players[next].id === g.lockBy) return finishRound(g);
+  g.turnIndex = next;
+  g.step = "draw";
 }
 
-function finishRound(g, winnerId) {
+function finishRound(g) {
   const live = aliveOf(g);
-  const lost = [];
+  const reveal = live.map(p => ({ id: p.id, name: p.name, hand: [...p.hand], score: score(p.hand) }));
+  const max = Math.max(...reveal.map(r => r.score));
+  const min = Math.min(...reveal.map(r => r.score));
+  const winnerIds = reveal.filter(r => r.score === max).map(r => r.id);
+  const lostIds = max === min ? [] : reveal.filter(r => r.score === min).map(r => r.id);
 
-  if (winnerId) {
-    live.forEach(p => { if (p.id !== winnerId) lost.push(p.id); });
-  } else {
-    live.forEach(p => { if (p.status === "bust") lost.push(p.id); });
-    const safe = live.filter(p => p.status === "stood");
-    if (safe.length) {
-      const min = Math.min(...safe.map(p => sum(p.hand)));
-      safe.forEach(p => { if (sum(p.hand) === min) lost.push(p.id); });
-    }
-  }
+  live.forEach(p => { if (lostIds.includes(p.id)) p.lives -= 1; });
 
-  const reveal = live.map(p => ({
-    id: p.id,
-    name: p.name,
-    hand: [...p.hand],
-    sum: sum(p.hand),
-    status: p.status,
-  }));
-
-  live.forEach(p => { if (lost.includes(p.id)) p.lives -= 1; });
-  g.players.forEach(p => { if (p.lives <= 0) p.status = "out"; });
-
-  g.result = { winnerId: winnerId || null, lostIds: lost, reveal };
+  g.result = { reveal, winnerIds, lostIds, lockBy: g.lockBy };
   g.turnIndex = -1;
 
-  if (winnerId) {
-    g.message = `${byId(g, winnerId).name} 정확히 31! 나머지 목숨 -1`;
-  } else if (lost.length) {
-    g.message = `이번 라운드 목숨 -1: ${lost.map(id => byId(g, id).name).join(", ")}`;
-  } else {
-    g.message = "이번 라운드 목숨 손실 없음";
-  }
+  const names = ids => ids.map(id => g.players.find(p => p.id === id).name).join(", ");
+  if (!lostIds.length) say(g, `모두 ${max}점 동점! 목숨 손실 없음`);
+  else say(g, `👑 ${names(winnerIds)} ${max}점! 목숨 -1: ${names(lostIds)} (${min}점)`);
 
   if (aliveOf(g).length <= 1) return endGame(g);
   g.phase = "roundEnd";
-  return g;
 }
 
 function endGame(g) {
   const live = aliveOf(g);
   g.phase = "gameOver";
-  g.winnerId = live.length === 1 ? live[0].id : null;
   g.turnIndex = -1;
-  g.message = g.winnerId
-    ? `${byId(g, g.winnerId).name} 최종 우승!`
-    : "모두 탈락! 무승부예요";
-  return g;
+  g.winnerId = live.length === 1 ? live[0].id : null;
+  say(g, g.winnerId ? `🏆 ${live[0].name} 최종 우승!` : "모두 탈락! 무승부예요");
 }
 
-// 화면에 보여도 되는 공개 정보만 (손패 제외)
 export function publicView(g) {
   const turn = g.turnIndex >= 0 ? g.players[g.turnIndex] : null;
   return {
     round: g.round,
     phase: g.phase,
-    message: g.message,
-    turnId: turn ? turn.id : null,
-    winnerId: g.winnerId,
+    turnId: g.phase === "playing" && turn ? turn.id : null,
+    step: g.step,
+    lockBy: g.lockBy,
+    discardTop: g.discard.length ? g.discard[g.discard.length - 1] : null,
+    deckCount: g.deck.length,
     result: g.result,
-    players: g.players.map(p => ({
-      id: p.id,
-      name: p.name,
-      isAI: p.isAI,
-      lives: p.lives,
-      status: p.status,
-    })),
+    winnerId: g.winnerId,
+    log: [...g.log],
+    players: g.players.map(p => ({ id: p.id, name: p.name, isAI: p.isAI, lives: p.lives })),
   };
+}
+
+export function privateView(g, playerId) {
+  const p = g.players.find(x => x.id === playerId);
+  return p ? { hand: p.hand } : null;
 }

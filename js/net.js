@@ -65,6 +65,11 @@ export function watchRoom(code, callback) {
   return onValue(ref(db, `rooms/${code}`), snap => callback(snap.val()));
 }
 
+// 방 정보의 한 항목 쓰기 (예: 방장이 추가한 컴퓨터 목록)
+export function writeRoomField(code, key, value) {
+  return set(ref(db, `rooms/${code}/${key}`), value);
+}
+
 // 공개 상태 (방장만 기록)
 export function writeState(code, state) {
   return set(ref(db, `rooms/${code}/state`), state);

@@ -1,9 +1,9 @@
 const GAMES = [
-  { id: "chess",     name: "체스",      icon: "♟️", desc: "2인 대결",               ready: false },
-  { id: "halli",     name: "할리갈리",  icon: "🍒", desc: "같은 과일 5개를 찾아라", ready: false },
-  { id: "uno",       name: "우노",      icon: "🃏", desc: "카드를 가장 먼저 털어라", ready: false },
-  { id: "blackjack", name: "블랙잭",    icon: "♠️", desc: "21에 가깝게",            ready: false },
-  { id: "thirtyone", name: "31 만들기", icon: "3️⃣", desc: "합계 31을 만들어라",     ready: true  },
+  { id: "chess",     name: "체스",      icon: "♟️", desc: "2인 대결",                 ready: false },
+  { id: "halli",     name: "할리갈리",  icon: "🍒", desc: "같은 과일 5개를 찾아라",   ready: false },
+  { id: "uno",       name: "우노",      icon: "🃏", desc: "카드를 가장 먼저 털어라",   ready: true  },
+  { id: "blackjack", name: "블랙잭",    icon: "♠️", desc: "딜러와 21 대결",           ready: true  },
+  { id: "thirtyone", name: "31",        icon: "3️⃣", desc: "같은 무늬 합 31을 만들어라", ready: true  },
 ];
 
 const app = document.getElementById("app");
@@ -59,7 +59,7 @@ function openGame(gameId) {
 function showModes(gameId) {
   app.innerHTML = `<div class="menu">
     <button class="card" data-mode="local"><strong>👨‍👩‍👧 한 기기</strong><small>같은 폰을 돌려가며</small></button>
-    <button class="card" data-mode="ai"><strong>🤖 컴퓨터 상대</strong><small>컴퓨터 1~3명과 대결</small></button>
+    <button class="card" data-mode="ai"><strong>🤖 컴퓨터 상대</strong><small>컴퓨터와 대결</small></button>
     <button class="card" data-mode="online"><strong>📱 온라인</strong><small>각자 폰에서 방 코드로</small></button>
   </div>`;
   app.querySelectorAll(".card").forEach(btn =>

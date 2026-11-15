@@ -20,7 +20,7 @@ const ready = new Promise((resolve, reject) => {
 
 export const myId = () => ready;
 
-const userError = text => Object.assign(new Error(text), { userMessage: text });
+const userError = key => Object.assign(new Error(key), { userKey: key });
 
 function makeCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
@@ -47,9 +47,9 @@ export async function createRoom(gameId, name) {
 export async function joinRoom(code, name, gameId) {
   const uid = await ready;
   const snap = await get(ref(db, `rooms/${code}`));
-  if (!snap.exists()) throw userError("방을 찾을 수 없어요. 코드를 다시 확인해 주세요");
+  if (!snap.exists()) throw userError("err.noRoom");
   const room = snap.val();
-  if (gameId && room.game !== gameId) throw userError("다른 게임의 방 코드예요");
+  if (gameId && room.game !== gameId) throw userError("err.otherGame");
   await update(ref(db, `rooms/${code}/players/${uid}`), { name, joinedAt: Date.now() });
   onDisconnect(ref(db, `rooms/${code}/players/${uid}`)).remove();
   return room;

@@ -60,6 +60,7 @@ const SOUNDS = {
   end:     () => [523, 659, 784].forEach((f, i) => tone(f, i * 0.1, 0.28, { type: "triangle", vol: 0.14 })),
   fanfare: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, i === 3 ? 0.6 : 0.2, { type: "triangle", vol: 0.16 })),
   triple:  () => [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, i * 0.07, 0.3, { type: "square", vol: 0.07 })),
+  bell:    () => { tone(1568, 0, 0.9, { vol: 0.2 }); tone(2093, 0, 0.6, { vol: 0.1 }); tone(3136, 0, 0.3, { vol: 0.05 }); }, // 할리갈리 종
   lose:    () => { tone(392, 0, 0.2, { type: "triangle", vol: 0.14 }); tone(311, 0.2, 0.4, { type: "triangle", vol: 0.14 }); },
 };
 

@@ -1,13 +1,11 @@
 // 우노 기본 규칙
 // - 7장씩, 같은 색 또는 같은 숫자/기호를 내요. 와일드는 언제나 가능
-// - 낼 카드가 없으면 1장 뽑고, 그 카드를 낼 수 있으면 바로 내거나 넘겨요
+// - 낼 카드가 있어도 없어도 1장 먹을 수 있고, 먹은 카드를 낼 수 있으면 바로 내거나 넘겨요
 // - 가장 먼저 카드를 다 털면 우승
 import { shuffle } from "../../js/cards.js";
 import { say } from "../../js/events.js";
 
 export const COLORS = ["R", "Y", "G", "B"];
-export const COLOR_KO = { R: "빨강", Y: "노랑", G: "초록", B: "파랑" };
-const ACTION_KO = { skip: "건너뛰기", rev: "방향 바꾸기", "+2": "+2", wild: "와일드", "+4": "와일드 +4" };
 
 function newDeck() {
   const d = [];
@@ -22,11 +20,6 @@ function newDeck() {
 
 export const canPlay = (card, top, color) =>
   !!card && (card.c === "W" || card.c === color || (!!top && card.v === top.v));
-
-export function cardText(card, color) {
-  if (card.c === "W") return `${ACTION_KO[card.v]} → ${COLOR_KO[color]}`;
-  return `${COLOR_KO[card.c]} ${ACTION_KO[card.v] || card.v}`;
-}
 
 const idx = (g, k) => (((g.turnIndex + g.dir * k) % g.players.length) + g.players.length) % g.players.length;
 
@@ -53,7 +46,7 @@ export function newGame(players) {
   g.deck.unshift(...skipped);
   g.discard.push(first);
   g.color = first.c;
-  say(g, `게임 시작! ${g.players[0].name}부터 해요`, "shuffle");
+  say(g, "uno.start", { name: g.players[0].name }, "shuffle");
   return g;
 }
 
@@ -94,49 +87,50 @@ export function act(g, playerId, a) {
     g.discard.push(card);
     g.pendingDraw = false;
     g.color = card.c === "W" ? a.color : card.c;
-    let text = `${p.name}: ${cardText(card, g.color)}`;
+    // 기록용 정보 (화면에서 언어에 맞게 문장으로 바뀌어요)
+    const info = { name: p.name, c: card.c, val: card.v, color: g.color, eff: "", target: "", k: 0, uno: 0 };
 
     if (!p.hand.length) {
       g.phase = "gameOver";
       g.winnerId = p.id;
       g.turnIndex = -1;
-      say(g, text, "place");
-      say(g, `🏆 ${p.name} 우승!`, "fanfare");
+      say(g, "uno.play", info, "place");
+      say(g, "uno.win", { name: p.name }, "fanfare");
       return true;
     }
-    if (p.hand.length === 1) text += " 🔔 우노!";
+    if (p.hand.length === 1) info.uno = 1;
 
     const next = g.players[idx(g, 1)];
     if (card.v === "skip" || (card.v === "rev" && g.players.length === 2)) {
-      text += ` (${next.name} 건너뜀)`;
+      info.eff = "skip"; info.target = next.name;
       g.turnIndex = idx(g, 2);
     } else if (card.v === "rev") {
       g.dir *= -1;
-      text += " (방향 바뀜)";
+      info.eff = "rev";
       g.turnIndex = idx(g, 1);
     } else if (card.v === "+2" || card.v === "+4") {
       const k = card.v === "+2" ? 2 : 4;
       drawN(g, next, k);
-      text += ` (${next.name} ${k}장 받고 건너뜀)`;
+      info.eff = "draw"; info.target = next.name; info.k = k;
       g.turnIndex = idx(g, 2);
     } else {
       g.turnIndex = idx(g, 1);
     }
-    const sound = p.hand.length === 1 ? "uno" : (card.c === "W" || !/^\d$/.test(card.v)) ? "special" : "place";
-    say(g, text, sound);
+    const sound = info.uno ? "uno" : (card.c === "W" || !/^\d$/.test(card.v)) ? "special" : "place";
+    say(g, "uno.play", info, sound);
     return true;
   }
 
   if (a.type === "draw") {
     if (g.pendingDraw) return false;
     const c = drawOne(g);
-    if (!c) { say(g, `${p.name}: 뽑을 카드가 없어 넘겼어요`); g.turnIndex = idx(g, 1); return true; }
+    if (!c) { say(g, "uno.empty", { name: p.name }); g.turnIndex = idx(g, 1); return true; }
     p.hand.push(c);
     if (canPlay(c, top, g.color)) {
       g.pendingDraw = true;
-      say(g, `${p.name}: 한 장 뽑았어요`, "flip");
+      say(g, "uno.drew", { name: p.name }, "flip");
     } else {
-      say(g, `${p.name}: 한 장 뽑고 넘겼어요`, "flip");
+      say(g, "uno.drewPass", { name: p.name }, "flip");
       g.turnIndex = idx(g, 1);
     }
     return true;
@@ -145,7 +139,7 @@ export function act(g, playerId, a) {
   if (a.type === "pass") {
     if (!g.pendingDraw) return false;
     g.pendingDraw = false;
-    say(g, `${p.name}: 넘겼어요`);
+    say(g, "uno.pass", { name: p.name });
     g.turnIndex = idx(g, 1);
     return true;
   }

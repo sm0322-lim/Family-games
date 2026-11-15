@@ -56,7 +56,7 @@ function startRound(g) {
   });
   g.phase = "bet";
   g.turnIndex = g.players.findIndex(p => p.status === "bet");
-  say(g, `${g.round}라운드: 베팅할 칩을 골라요`, "shuffle");
+  say(g, "bj.round", { round: g.round }, "shuffle");
 }
 
 function draw(g) {
@@ -73,7 +73,7 @@ export function act(g, playerId, a) {
     if (a.type !== "bet" || !BETS.includes(a.amount) || a.amount > p.chips) return false;
     p.bet = a.amount;
     p.status = "ready";
-    say(g, `${p.name}: ${a.amount}칩 베팅`, "chip");
+    say(g, "bj.bet", { name: p.name, n: a.amount }, "chip");
     const next = g.players.findIndex(x => x.status === "bet");
     if (next >= 0) g.turnIndex = next; else deal(g);
     return true;
@@ -84,14 +84,14 @@ export function act(g, playerId, a) {
   if (a.type === "hit") {
     p.hand.push(draw(g));
     const v = handValue(p.hand).total;
-    if (v > 21) { p.status = "bust"; say(g, `${p.name}: 히트 → ${v} 버스트!`, "bust"); nextPlayer(g); }
-    else if (v === 21) { p.status = "stand"; say(g, `${p.name}: 히트 → 21!`, "uno"); nextPlayer(g); }
-    else say(g, `${p.name}: 히트 → ${v}`, "flip");
+    if (v > 21) { p.status = "bust"; say(g, "bj.hitBust", { name: p.name, n: v }, "bust"); nextPlayer(g); }
+    else if (v === 21) { p.status = "stand"; say(g, "bj.hit21", { name: p.name }, "uno"); nextPlayer(g); }
+    else say(g, "bj.hit", { name: p.name, n: v }, "flip");
     return true;
   }
   if (a.type === "stand") {
     p.status = "stand";
-    say(g, `${p.name}: 스탠드 (${handValue(p.hand).total})`, "place");
+    say(g, "bj.stand", { name: p.name, n: handValue(p.hand).total }, "place");
     nextPlayer(g);
     return true;
   }
@@ -101,7 +101,7 @@ export function act(g, playerId, a) {
     p.hand.push(draw(g));
     const v = handValue(p.hand).total;
     p.status = v > 21 ? "bust" : "stand";
-    say(g, `${p.name}: 더블 (${p.bet}칩) → ${v}${v > 21 ? " 버스트!" : ""}`, v > 21 ? "bust" : "chip");
+    say(g, v > 21 ? "bj.doubleBust" : "bj.double", { name: p.name, bet: p.bet, n: v }, v > 21 ? "bust" : "chip");
     nextPlayer(g);
     return true;
   }
@@ -116,10 +116,10 @@ function deal(g) {
   }
   live.forEach(p => { p.status = isBlackjack(p.hand) ? "blackjack" : "playing"; });
   g.phase = "play";
-  say(g, "카드를 2장씩 나눠 줬어요", "flip");
+  say(g, "bj.dealt", {}, "flip");
 
   if (isBlackjack(g.dealer)) {
-    say(g, "딜러 블랙잭!", "lose");
+    say(g, "bj.dealerBJ", {}, "lose");
     return dealerPlay(g);
   }
   const first = g.players.findIndex(p => p.status === "playing");
@@ -145,21 +145,21 @@ function dealerPlay(g) {
 function settle(g) {
   const d = handValue(g.dealer).total;
   const dBJ = isBlackjack(g.dealer);
-  say(g, `딜러: ${d}${d > 21 ? " 버스트!" : ""}`, "end");
+  say(g, d > 21 ? "bj.dealerBust" : "bj.dealer", { n: d }, "end");
 
   g.players.forEach(p => {
     if (p.status === "out") return;
     let delta = 0, result;
-    if (p.status === "bust") { delta = -p.bet; result = "패"; }
+    if (p.status === "bust") { delta = -p.bet; result = "lose"; }
     else if (p.status === "blackjack") {
-      if (dBJ) result = "무승부";
-      else { delta = Math.floor(p.bet * 1.5); result = "블랙잭 승"; }
+      if (dBJ) result = "push";
+      else { delta = Math.floor(p.bet * 1.5); result = "bj"; }
     } else {
       const v = handValue(p.hand).total;
-      if (dBJ) { delta = -p.bet; result = "패"; }
-      else if (d > 21 || v > d) { delta = p.bet; result = "승"; }
-      else if (v === d) result = "무승부";
-      else { delta = -p.bet; result = "패"; }
+      if (dBJ) { delta = -p.bet; result = "lose"; }
+      else if (d > 21 || v > d) { delta = p.bet; result = "win"; }
+      else if (v === d) result = "push";
+      else { delta = -p.bet; result = "lose"; }
     }
     p.delta = delta;
     p.chips += delta;
@@ -176,7 +176,8 @@ function endGame(g) {
   const max = Math.max(...g.players.map(p => p.chips));
   g.winnerIds = max > 0 ? g.players.filter(p => p.chips === max).map(p => p.id) : [];
   const names = g.players.filter(p => g.winnerIds.includes(p.id)).map(p => p.name).join(", ");
-  say(g, names ? `🏆 ${names} 우승! (${max}칩)` : "모두 칩을 잃었어요. 딜러 승리!", names ? "fanfare" : "lose");
+  if (names) say(g, "bj.win", { names, n: max }, "fanfare");
+  else say(g, "bj.dealerWins", {}, "lose");
 }
 
 export function publicView(g) {

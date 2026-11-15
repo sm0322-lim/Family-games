@@ -90,7 +90,7 @@ function startRound(g) {
   g.turnCount = 0;
   g.result = null;
   g.phase = "playing";
-  say(g, `${g.round}라운드 시작! ${g.players[g.turnIndex].name}부터 해요`, "shuffle");
+  say(g, "31.start", { round: g.round, name: g.players[g.turnIndex].name }, "shuffle");
 
   // 처음 받은 3장이 트리플이면 바로 승리
   const lucky = live.filter(p => isTriple(p.hand)).map(p => p.id);
@@ -117,7 +117,7 @@ export function act(g, playerId, a) {
       if (!c) return false;
       p.hand.push(c);
       g.step = "discard";
-      say(g, `${p.name}: 더미에서 한 장 가져왔어요`, "flip");
+      say(g, "31.drawDeck", { name: p.name }, "flip");
       return true;
     }
     if (a.type === "drawDiscard") {
@@ -125,13 +125,13 @@ export function act(g, playerId, a) {
       if (!c) return false;
       p.hand.push(c);
       g.step = "discard";
-      say(g, `${p.name}: 바닥의 ${cardLabel(c)} 가져왔어요`, "flip");
+      say(g, "31.drawDiscard", { name: p.name, card: cardLabel(c) }, "flip");
       return true;
     }
     if (a.type === "lock") {
       if (g.lockBy) return false;
       g.lockBy = p.id;
-      say(g, `🔒 ${p.name} Lock! 나머지는 마지막으로 한 번씩 교환해요`, "lock");
+      say(g, "31.lock", { name: p.name }, "lock");
       endTurn(g);
       return true;
     }
@@ -143,7 +143,7 @@ export function act(g, playerId, a) {
     if (!Number.isInteger(i) || i < 0 || i >= p.hand.length) return false;
     const [c] = p.hand.splice(i, 1);
     g.discard.push(c);
-    say(g, `${p.name}: ${cardLabel(c)} 반납했어요`, "place");
+    say(g, "31.discard", { name: p.name, card: cardLabel(c) }, "place");
     if (isTriple(p.hand)) finishRound(g, [p.id]);
     else endTurn(g);
     return true;
@@ -186,14 +186,15 @@ function finishRound(g, instantIds) {
   if (instantIds) {
     const w = live.find(p => p.id === instantIds[0]);
     const r = rankLabel(w.hand[0].r);
-    say(g, `🎉 ${namesOf(g, winnerIds)} 트리플(${r}·${r}·${r})! 즉시 1등`, "triple");
-    say(g, lostIds.length ? `목숨 -1: ${namesOf(g, lostIds)}` : "목숨 손실 없음");
+    say(g, "31.triple", { names: namesOf(g, winnerIds), r }, "triple");
+    if (lostIds.length) say(g, "31.lost", { names: namesOf(g, lostIds) });
+    else say(g, "31.noLoss");
   } else if (!lostIds.length) {
-    say(g, "모두 동점! 목숨 손실 없음", "end");
+    say(g, "31.tie", {}, "end");
   } else {
     const top = reveal.find(r => r.id === winnerIds[0]);
     const low = reveal.find(r => r.id === lostIds[0]);
-    say(g, `👑 ${namesOf(g, winnerIds)} ${top.score}점! 목숨 -1: ${namesOf(g, lostIds)} (${low.score}점)`, "end");
+    say(g, "31.round", { names: namesOf(g, winnerIds), top: top.score, lost: namesOf(g, lostIds), low: low.score }, "end");
   }
 
   if (aliveOf(g).length <= 1) return endGame(g);
@@ -205,7 +206,8 @@ function endGame(g) {
   g.phase = "gameOver";
   g.turnIndex = -1;
   g.winnerId = live.length === 1 ? live[0].id : null;
-  say(g, g.winnerId ? `🏆 ${live[0].name} 최종 우승!` : "모두 탈락! 무승부예요", g.winnerId ? "fanfare" : "lose");
+  if (g.winnerId) say(g, "31.champ", { name: live[0].name }, "fanfare");
+  else say(g, "31.allOut", {}, "lose");
 }
 
 export function publicView(g) {

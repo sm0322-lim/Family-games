@@ -1,4 +1,5 @@
 * { box-sizing: border-box; }
+button { touch-action: manipulation; }
 
 html, body {
   margin: 0;
@@ -20,7 +21,7 @@ header {
   z-index: 10;
 }
 header h1 { margin: 0; font-size: 20px; flex: 1; }
-#back, #sound {
+.hbtn {
   background: rgba(255,255,255,.25);
   border: 0;
   color: #fff;
@@ -298,3 +299,118 @@ button.uno { cursor: pointer; }
 .actions button.uno.G { background: #43a047; }
 .actions button.uno.B { background: #1e88e5; }
 .actions button.uno { padding: 0; }
+
+/* ---------- 머리말 / 공통 ---------- */
+#lang { font-size: 15px; font-weight: bold; min-width: 44px; }
+.seg { display: flex; gap: 6px; justify-content: center; margin: 0 auto 8px; max-width: 420px; }
+.seg button {
+  flex: 1; padding: 10px; border-radius: 12px; border: 2px solid #ffccbc;
+  background: #fff; color: #4e342e; font-size: 15px; font-family: inherit; cursor: pointer;
+}
+.seg button.on { background: #ff8a65; color: #fff; border-color: #ff8a65; }
+.warn { color: #c62828; }
+
+/* ---------- 체스 ---------- */
+.board {
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  width: 100%; max-width: 420px; aspect-ratio: 1; margin: 8px auto;
+  border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.sq {
+  position: relative; border: 0; padding: 0; margin: 0; aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center; font: inherit; cursor: pointer;
+}
+.sq.lt { background: #f0d9b5; }
+.sq.dk { background: #b58863; }
+.sq.last { box-shadow: inset 0 0 0 100px rgba(255, 235, 59, .38); }
+.sq.sel { box-shadow: inset 0 0 0 100px rgba(255, 138, 101, .6); }
+.sq.chk { box-shadow: inset 0 0 0 100px rgba(229, 57, 53, .55); }
+.sq.tgt-mv::after {
+  content: ""; position: absolute; width: 28%; height: 28%; border-radius: 50%; background: rgba(0,0,0,.25);
+}
+.sq.tgt-cap::after {
+  content: ""; position: absolute; inset: 6%; border-radius: 50%; border: 4px solid rgba(0,0,0,.28);
+}
+.sq i { position: absolute; font-style: normal; font-size: 9px; color: rgba(0,0,0,.45); line-height: 1; }
+.sq .rk { top: 2px; left: 3px; }
+.sq .fl { bottom: 2px; right: 3px; }
+.cp { font-size: min(9vw, 40px); line-height: 1; position: relative; z-index: 1; }
+.cp.w { color: #fff; -webkit-text-stroke: 1.2px #3e2723; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.cp.b { color: #212121; }
+.cbar {
+  display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 12px;
+  padding: 6px 10px; border: 2px solid transparent; max-width: 420px; margin: 0 auto; min-height: 40px;
+}
+.cbar.turn { border-color: #ff8a65; }
+.cdot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #5d4037; flex: none; }
+.cdot.w { background: #fff; }
+.cdot.b { background: #212121; }
+.caps { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; }
+.caps .cp { font-size: 18px; -webkit-text-stroke-width: .6px; }
+.picker .actions button .cp { font-size: 22px; }
+
+/* ---------- 할리갈리 ---------- */
+.hg-card {
+  width: 76px; height: 104px; background: #fff; border-radius: 12px; border: 2px solid #eee;
+  box-shadow: 0 2px 6px rgba(0,0,0,.15); padding: 6px;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  place-items: center; font-size: 20px; line-height: 1;
+}
+.hg-card.big { width: 110px; height: 150px; font-size: 30px; }
+.hg-card.small { width: 56px; height: 76px; font-size: 14px; padding: 3px; }
+.hg-card.empty { background: rgba(255,255,255,.4); border: 2px dashed #d7ccc8; box-shadow: none; }
+.hg-card.n1 span:nth-child(1) { grid-area: 2 / 2; }
+.hg-card.n2 span:nth-child(1) { grid-area: 1 / 1; }
+.hg-card.n2 span:nth-child(2) { grid-area: 3 / 3; }
+.hg-card.n3 span:nth-child(1) { grid-area: 1 / 1; }
+.hg-card.n3 span:nth-child(2) { grid-area: 2 / 2; }
+.hg-card.n3 span:nth-child(3) { grid-area: 3 / 3; }
+.hg-card.n4 span:nth-child(1), .hg-card.n5 span:nth-child(1) { grid-area: 1 / 1; }
+.hg-card.n4 span:nth-child(2), .hg-card.n5 span:nth-child(2) { grid-area: 1 / 3; }
+.hg-card.n4 span:nth-child(3), .hg-card.n5 span:nth-child(3) { grid-area: 3 / 1; }
+.hg-card.n4 span:nth-child(4), .hg-card.n5 span:nth-child(4) { grid-area: 3 / 3; }
+.hg-card.n5 span:nth-child(5) { grid-area: 2 / 2; }
+
+.bell {
+  width: 72px; height: 72px; border-radius: 50%; border: 0; cursor: pointer; font-size: 34px;
+  background: radial-gradient(circle at 35% 30%, #fff59d, #fbc02d 60%, #f57f17);
+  box-shadow: 0 4px 0 #e65100; user-select: none; -webkit-user-select: none;
+}
+.bell.big { width: 110px; height: 110px; font-size: 52px; }
+.bell:active, .bell.hit { transform: translateY(3px); box-shadow: 0 1px 0 #e65100; }
+.flipbtn {
+  padding: 10px 16px; border: 0; border-radius: 12px; background: #5d4037; color: #fff;
+  font-size: 15px; font-family: inherit; cursor: pointer;
+}
+.flipbtn.big { padding: 16px 22px; font-size: 17px; }
+
+.hg-local { display: flex; flex-direction: column; gap: 6px; height: calc(100dvh - 110px); min-height: 460px; }
+.hg-row { flex: 1; display: flex; gap: 6px; min-height: 0; }
+.hg-row.top .hg-zone { transform: rotate(180deg); }
+.hg-zone {
+  flex: 1; min-width: 0; background: #fff; border-radius: 16px; border: 3px solid transparent;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 6px;
+}
+.hg-zone.turn { border-color: #ff8a65; }
+.hg-zone.out { opacity: .4; }
+.hg-zinfo { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+.hg-zinfo span { color: #8d6e63; }
+.hg-zbtns { display: flex; gap: 10px; align-items: center; min-height: 72px; }
+.hg-mid { text-align: center; font-size: 13px; color: #8d6e63; min-height: 1.6em; }
+.hg-mid h2 { margin: 4px 0; color: #4e342e; }
+
+.hg-others { display: flex; gap: 6px; justify-content: center; }
+.hg-other {
+  flex: 1; max-width: 130px; background: #fff; border-radius: 12px; padding: 6px; border: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 14px;
+}
+.hg-other.turn { border-color: #ff8a65; }
+.hg-other.out { opacity: .4; }
+.hg-other small { color: #8d6e63; }
+.hg-me {
+  background: #fff; border-radius: 16px; padding: 12px; margin-top: 10px; border: 3px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.hg-me.turn { border-color: #ff8a65; }
+.hg-me.out { opacity: .5; }
+.hg-mybtns { display: flex; gap: 16px; align-items: center; }

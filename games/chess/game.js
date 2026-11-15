@@ -23,6 +23,7 @@ addStrings({
     "chess.hint": "움직일 말을 누르고, 갈 칸을 눌러 주세요",
     "chess.resign": "🏳️ 기권", "chess.resignConfirm": "한 번 더 누르면 기권",
     "chess.promo": "어떤 말로 바꿀까요?",
+    "chess.replay": "▶ 다시 보기",
     "chess.p.q": "퀸", "chess.p.r": "룩", "chess.p.b": "비숍", "chess.p.n": "나이트",
     "chess.start": "{name}(백)부터 시작해요",
     "chess.move": v => moveText(v, "ko"),
@@ -41,6 +42,7 @@ addStrings({
     "chess.hint": "Tap a piece, then tap where it should go",
     "chess.resign": "🏳️ Resign", "chess.resignConfirm": "Tap again to resign",
     "chess.promo": "Promote to which piece?",
+    "chess.replay": "▶ Replay",
     "chess.p.q": "Queen", "chess.p.r": "Rook", "chess.p.b": "Bishop", "chess.p.n": "Knight",
     "chess.start": "White moves first: {name}",
     "chess.move": v => moveText(v, "en"),
@@ -76,7 +78,7 @@ export function start(opts) {
     minPlayers: 2, maxPlayers: 2,
     localCounts: [2], aiCounts: [1],
     levels: ["easy", "normal", "hard"],
-    aiDelay: 600,
+    aiDelay: 1300,
     rules: RULES,
     newGame: E.newGame, nextRound: E.nextRound, act: E.act,
     publicView: E.publicView, privateView: E.privateView,
@@ -161,10 +163,17 @@ function render(container, pub, mine, ui) {
     extra += `<h2>${esc(lastLog ? t(lastLog.k, lastLog.v || {}) : "")}</h2>`;
   }
 
+  // 방금 둔 수: 보드 아래에 크게 보여 주고 다시 보기 버튼
+  const lastMove = [...(pub.log || [])].reverse().find(e => e && e.k === "chess.move");
+  const lastMoveHTML = lastMove && pub.last
+    ? `<div class="lastmove"><span>${esc(t(lastMove.k, lastMove.v || {}))}</span><button id="replay">${esc(t("chess.replay"))}</button></div>`
+    : "";
+
   container.innerHTML = `<div class="game">
     ${bar(topP)}
     <div class="board ${canMove ? "live" : ""}">${squares}</div>
     ${bar(bottomP)}
+    ${lastMoveHTML}
     ${status}
     ${extra}
     ${footerHTML(pub, ui)}
@@ -172,6 +181,21 @@ function render(container, pub, mine, ui) {
   </div>`;
 
   const redraw = () => render(container, pub, mine, ui);
+
+  // 상대가 둔 수는 말이 미끄러지듯 천천히 움직여요 (내가 둔 수는 바로)
+  const moveKey = board + pub.turn;
+  if (pub.last && st.animKey !== moveKey) {
+    const mover = E.colorOf(pos.b[pub.last.to]);
+    const byMe = ui.mode !== "local" && me && me.color === mover;
+    if (!byMe || st.forceAnim) animateMove(container, pub.last, flip);
+    st.animKey = moveKey;
+    st.forceAnim = false;
+  }
+  container.querySelector("#replay")?.addEventListener("click", () => {
+    st.animKey = "";
+    st.forceAnim = true;
+    redraw();
+  });
 
   container.querySelectorAll(".sq").forEach(el => el.addEventListener("click", () => {
     if (!canMove || st.promo) return;
@@ -192,4 +216,27 @@ function render(container, pub, mine, ui) {
   }));
   bindConfirm(container.querySelector("#resign"), () => ui.act({ type: "resign" }));
   bindFooter(container, ui);
+}
+
+const MOVE_MS = 900;
+
+function animateMove(container, last, flip) {
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const toEl = container.querySelector(`.sq[data-sq="${last.to}"]`);
+  const piece = toEl && toEl.querySelector(".cp");
+  if (!piece) return;
+  const view = i => { const r = i >> 3, f = i & 7; return flip ? [7 - r, 7 - f] : [r, f]; };
+  const [fr, ff] = view(last.from);
+  const [tr, tf] = view(last.to);
+  const size = toEl.getBoundingClientRect().width || 0;
+  toEl.classList.add("anim");
+  piece.style.transition = "none";
+  piece.style.transform = `translate(${(ff - tf) * size}px, ${(fr - tr) * size}px)`;
+  piece.getBoundingClientRect();   // 시작 위치를 먼저 그리게 해요
+  const go = () => {
+    piece.style.transition = `transform ${MOVE_MS}ms ease-in-out`;
+    piece.style.transform = "translate(0, 0)";
+  };
+  (window.requestAnimationFrame || setTimeout)(() => (window.requestAnimationFrame || setTimeout)(go));
+  setTimeout(() => toEl.classList.remove("anim"), MOVE_MS + 100);
 }

@@ -414,3 +414,15 @@ button.uno { cursor: pointer; }
 .hg-me.turn { border-color: #ff8a65; }
 .hg-me.out { opacity: .5; }
 .hg-mybtns { display: flex; gap: 16px; align-items: center; }
+
+/* 체스: 상대 수 보여 주기 */
+.sq.anim { z-index: 5; }
+.lastmove {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px;
+  background: #fff3e0; border-radius: 12px; padding: 6px 10px; margin: 8px auto; max-width: 420px;
+  font-weight: bold;
+}
+.lastmove button {
+  border: 0; background: #ff8a65; color: #fff; border-radius: 10px; padding: 6px 10px;
+  font: inherit; font-size: 14px; cursor: pointer;
+}
